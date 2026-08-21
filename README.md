@@ -80,12 +80,44 @@ main.py            — CLI runner that wires it all together and prints the full
 
 ## Next steps (Phase 3 in the roadmap)
 
-1. Wrap `run_negotiation()` in a FastAPI endpoint — call `on_round` to push live status
-   over a websocket or polled endpoint so the frontend can show "Agent A proposing...".
-2. Add a private intake step that turns free-form chat into a `ConstraintProfile` via a
-   structured-output API call (same `tool_choice` pattern used in `agents.py`).
-3. Wire `FairnessVerdict` into the reveal screen — `what_a_didnt_know` /
-   `what_b_didnt_know` are written to be shown directly as the "payoff" moment.
+1. ~~Wrap `run_negotiation()` in a FastAPI endpoint~~ — done, see `backend/`.
+2. ~~Add a private intake step~~ — done, see `backend/intake.py`.
+3. Build the React frontend against the endpoints below.
+
+---
+
+## Backend (FastAPI + room-code pairing)
+
+```bash
+# from the mediator-engine/ root, with your venv active and requirements installed:
+export MEDIATOR_PROVIDER=groq
+export GROQ_API_KEY=gsk_...
+uvicorn backend.app:app --reload --port 8000
+```
+
+Or test the whole flow with zero API calls first:
+```bash
+export MEDIATOR_MOCK=1
+uvicorn backend.app:app --reload --port 8000
+```
+
+### Endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/api/rooms` | Party A creates a room. Body: `{"party_a_name": "Riya"}`. Returns `room_code`. |
+| POST | `/api/rooms/{code}/join` | Party B joins. Body: `{"party_b_name": "Karan"}`. |
+| POST | `/api/rooms/{code}/extract` | (optional) Turn free text into a `ConstraintProfile` via LLM. Body: `{"role": "a", "party_name": "Riya", "free_text": "..."}`. |
+| POST | `/api/rooms/{code}/constraints` | Submit a party's profile. Body: `{"role": "a", "profile": {...}}`. Once BOTH are submitted, negotiation starts automatically in the background. |
+| GET | `/api/rooms/{code}/status` | Poll live status + rounds so far — this is what your "Agent A proposing..." UI polls. |
+| GET | `/api/rooms/{code}/result` | Final terms + fairness verdict. 409 until status is `done`. |
+
+### Design notes
+
+- **Room-code pairing** — `store.py` generates a 6-character code (e.g. `K3F9QZ`), no accounts needed. This is a single in-memory process store; fine for a hackathon demo, but restarting the server wipes all rooms. Swap for Redis/Postgres if you need persistence.
+- **Negotiation runs in a background thread**, kicked off automatically the moment both profiles are in — the client that submits second gets `both_submitted: true` in the response, and everyone should start polling `/status` from there.
+- **Neither party's raw profile is ever returned** by any endpoint — only the shared transcript and final verdict. This is the actual privacy guarantee the whole product depends on; don't add a route that echoes back `profile_a`/`profile_b`.
+- **`MEDIATOR_MOCK=1`** mirrors the CLI's `--mock` flag — runs the entire room lifecycle (including a mock constraint extractor) with zero API calls. Use this to test your frontend's polling/status logic without burning credits.
 
 ## Model
 
