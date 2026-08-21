@@ -89,6 +89,20 @@ Rules:
 7. Preserve concrete values accurately:
    budgets, dates, durations, quantities, deadlines, etc.
 
+   DATE RULE:
+   The current planning year for this application is 2026.
+
+   If the user gives a date without a year, such as:
+   - "December 5"
+   - "Dec 5"
+   - "5th December"
+
+   interpret it as December 5, 2026.
+
+   Never invent a different year for an unspecified date.
+
+   If the user explicitly provides a year, preserve that year exactly.
+
 8. Write a one-line scenario_summary capturing what this person is
    trying to achieve.
 
@@ -102,6 +116,9 @@ Rules:
     - If yes -> HARD.
     - If it is merely something they want or prefer -> SOFT.
     - If they explicitly said they are flexible -> SOFT.
+
+11. For travel dates, always preserve the intended calendar year.
+    An unspecified year means 2026 for this application.
 
 Respond ONLY by calling the `extract_profile` tool.
 """

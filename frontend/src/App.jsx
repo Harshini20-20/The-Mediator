@@ -530,46 +530,6 @@ function App() {
             </div>
           </section>
 
-          {/* UNKNOWN INFORMATION */}
-
-          {verdict && (
-            <div className="mt-6 grid gap-6 md:grid-cols-2">
-
-              <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-
-                <p className="text-xs uppercase tracking-[0.2em] text-white/30">
-                  Privacy insight
-                </p>
-
-                <h3 className="mt-2 text-lg font-semibold">
-                  What Party A didn't know
-                </h3>
-
-                <p className="mt-4 text-sm leading-6 text-white/45">
-                  {verdict.what_a_didnt_know}
-                </p>
-
-              </section>
-
-              <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-
-                <p className="text-xs uppercase tracking-[0.2em] text-white/30">
-                  Privacy insight
-                </p>
-
-                <h3 className="mt-2 text-lg font-semibold">
-                  What Party B didn't know
-                </h3>
-
-                <p className="mt-4 text-sm leading-6 text-white/45">
-                  {verdict.what_b_didnt_know}
-                </p>
-
-              </section>
-
-            </div>
-          )}
-
           {/* FOOTER */}
 
           <div className="mt-10 flex items-center justify-between">

@@ -18,44 +18,75 @@ import os
 from .agents import PROVIDER, MODEL, _to_openai_tool
 from .schema import ConstraintProfile, FairnessVerdict, NegotiationTranscript
 
-FAIRNESS_SYSTEM_PROMPT = """You are a neutral mediator reviewing a completed negotiation \
-between two AI agents, each of whom represented one human party. You can see BOTH parties' \
-full private constraints — something neither agent could see during the negotiation.
+FAIRNESS_SYSTEM_PROMPT = """You are a neutral mediator reviewing a completed negotiation
+between two AI agents representing two human parties.
+
+You can see BOTH parties' private constraint profiles. This information is strictly
+confidential.
 
 Your job:
-1. Judge whether the final terms are genuinely balanced given each party's stated \
-priorities — not just whether both agents agreed.
-2. Write a short, warm, plain-language explanation for EACH party covering what they \
-gained and what they gave up.
-3. Identify the single most important thing about the OTHER party's needs that this \
-party likely didn't know before — this is the emotional payoff of the whole product, \
-so make it specific and genuine, not generic.
 
-Be honest in your balance_score — if one side clearly gave up more, say so. Do not \
-inflate the score to make the outcome look better than it is.
+1. Judge whether the final terms are balanced based on each party's hard constraints
+   and soft preferences.
+
+2. Give a short, neutral explanation for Party A describing what the final agreement
+   preserved and what Party A compromised on.
+
+3. Give a short, neutral explanation for Party B describing what the final agreement
+   preserved and what Party B compromised on.
+
+IMPORTANT PRIVACY RULES:
+
+- NEVER reveal Party A's private constraints to Party B.
+- NEVER reveal Party B's private constraints to Party A.
+- NEVER state what the other party secretly wanted, preferred, valued, or was willing
+  to accept.
+- NEVER reveal private priorities, hidden limits, motivations, work circumstances,
+  fallback positions, or reservation values.
+- NEVER describe information that was only present in a private profile.
+- The explanations must focus only on the observable final agreement and the concessions
+  recorded in the negotiation transcript.
+- Do not create or expose a "what the other party didn't know" insight.
+
+Be honest in your balance_score.
+
+0 = completely one-sided
+100 = perfectly balanced
+
+A lower score is acceptable when one party clearly made more concessions.
+Do not inflate the score simply because both parties accepted the agreement.
 
 Respond ONLY by calling the `render_verdict` tool.
 """
 
 FAIRNESS_TOOL = {
     "name": "render_verdict",
-    "description": "Submit the fairness verdict for a completed negotiation.",
+    "description": "Submit a privacy-safe fairness verdict for a completed negotiation.",
     "input_schema": {
         "type": "object",
         "properties": {
-            "is_balanced": {"type": "boolean"},
-            "balance_score": {"type": "integer", "minimum": 0, "maximum": 100},
-            "explanation_for_a": {"type": "string"},
-            "explanation_for_b": {"type": "string"},
-            "what_a_didnt_know": {"type": "string"},
-            "what_b_didnt_know": {"type": "string"},
+            "is_balanced": {
+                "type": "boolean"
+            },
+            "balance_score": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+            },
+            "explanation_for_a": {
+                "type": "string"
+            },
+            "explanation_for_b": {
+                "type": "string"
+            }
         },
         "required": [
-            "is_balanced", "balance_score",
-            "explanation_for_a", "explanation_for_b",
-            "what_a_didnt_know", "what_b_didnt_know",
-        ],
-    },
+            "is_balanced",
+            "balance_score",
+            "explanation_for_a",
+            "explanation_for_b"
+        ]
+    }
 }
 
 
@@ -133,8 +164,12 @@ def _mock_verdict(transcript, profile_a, profile_b) -> FairnessVerdict:
     return FairnessVerdict(
         is_balanced=balance >= 60,
         balance_score=balance,
-        explanation_for_a=f"{profile_a.party_name} held firm on hard constraints and conceded on {conceded_by_a} lower-priority item(s).",
-        explanation_for_b=f"{profile_b.party_name} held firm on hard constraints and conceded on {conceded_by_b} lower-priority item(s).",
-        what_a_didnt_know=f"{profile_b.party_name} had a hard constraint that made early agreement valuable.",
-        what_b_didnt_know=f"{profile_a.party_name} had a hard constraint that made early agreement valuable.",
+        explanation_for_a=(
+            f"{profile_a.party_name} made "
+            f"{conceded_by_a} concession(s) during the negotiation."
+        ),
+        explanation_for_b=(
+            f"{profile_b.party_name} made "
+            f"{conceded_by_b} concession(s) during the negotiation."
+        ),
     )

@@ -162,25 +162,15 @@ class FairnessVerdict(BaseModel):
         ...,
         ge=0,
         le=100,
-        description="0=fully one-sided, 100=perfectly balanced"
+        description="0=fully one-sided,100=perfectly balanced"
     )
 
     explanation_for_a: str = Field(
         ...,
-        description="What A gave up / gained, in plain language"
+        description="Neutral summary of what A gave up / gained"
     )
 
     explanation_for_b: str = Field(
         ...,
-        description="What B gave up / gained, in plain language"
-    )
-
-    what_a_didnt_know: str = Field(
-        ...,
-        description="The key thing about B's needs that A didn't know"
-    )
-
-    what_b_didnt_know: str = Field(
-        ...,
-        description="The key thing about A's needs that B didn't know"
+        description="Neutral summary of what B gave up / gained"
     )
