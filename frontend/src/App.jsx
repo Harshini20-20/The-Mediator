@@ -199,6 +199,13 @@ function App() {
       setLoading(false);
     }
   }
+  // -----------------------------
+  // DERIVED ROOM STATUS
+  // -----------------------------
+
+  const negotiating = roomStatus === "negotiating";
+  const done = roomStatus === "done";
+  const statusError = roomStatus === "error";
 
   // -----------------------------
   // GET FINAL RESULT
@@ -211,12 +218,21 @@ function App() {
       );
 
       if (!response.ok) {
+        const message = await response.text();
+        console.error(
+          "Result request failed:",
+          response.status,
+          message
+        );
         return false;
       }
 
       const data = await response.json();
 
+      console.log("FINAL RESULT RECEIVED:", data);
+
       setResult(data);
+      setRoomStatus("done");
       return true;
     } catch (err) {
       console.error("Result error:", err);
@@ -224,47 +240,103 @@ function App() {
     }
   }
 
-  // -----------------------------
-  // ROOM STATUS POLLING
-  // -----------------------------
+ // -----------------------------
+// ROOM STATUS POLLING
+// -----------------------------
 
-  useEffect(() => {
-    if (!roomCode || !profile) return;
+useEffect(() => {
+  if (!roomCode || !profile) return;
 
-    let cancelled = false;
+  let cancelled = false;
 
-    async function checkStatus() {
-      try {
-        const response = await fetch(
-          `${API}/api/rooms/${roomCode}/status`
+  async function checkStatus() {
+    try {
+      const response = await fetch(
+        `${API}/api/rooms/${roomCode}/status`
+      );
+
+      if (!response.ok) {
+        console.error(
+          "Status request failed:",
+          response.status
+        );
+        return;
+      }
+
+      const data = await response.json();
+
+      if (cancelled) return;
+
+      console.log("ROOM STATUS:", data.status);
+      console.log("ROOM ERROR:", data.error_message);
+      setRoomStatus(data.status);
+
+      // Negotiation has finished.
+      // Immediately load the final agreement.
+      if (data.status === "done") {
+        console.log("NEGOTIATION DONE — LOADING RESULT");
+
+        const resultResponse = await fetch(
+          `${API}/api/rooms/${roomCode}/result`
         );
 
-        if (!response.ok) return;
+        if (!resultResponse.ok) {
+          const message = await resultResponse.text();
 
-        const data = await response.json();
+          console.error(
+            "FINAL RESULT FAILED:",
+            resultResponse.status,
+            message
+          );
 
-        if (cancelled) return;
-
-        setRoomStatus(data.status);
-
-        if (data.status === "done") {
-          await fetchResult();
+          return;
         }
-      } catch (err) {
-        console.error("Status polling error:", err);
+
+        const finalData = await resultResponse.json();
+
+        console.log(
+          "FINAL RESULT:",
+          finalData
+        );
+
+        if (!cancelled) {
+          setResult(finalData);
+          setRoomStatus("done");
+        }
+
+        return;
       }
+
+      if (data.status === "error") {
+        setError(
+          data.error_message ||
+          "The negotiation could not be completed."
+        );
+      }
+
+    } catch (err) {
+      console.error(
+        "Status polling error:",
+        err
+      );
     }
+  }
 
-    checkStatus();
+  // Check immediately.
+  checkStatus();
 
-    const interval = setInterval(checkStatus, 2000);
+  // Continue checking every 2 seconds.
+  const interval = setInterval(
+    checkStatus,
+    2000
+  );
 
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [roomCode, profile]);
+  return () => {
+    cancelled = true;
+    clearInterval(interval);
+  };
 
+}, [roomCode, profile]);
   // -----------------------------
   // RESET
   // -----------------------------
@@ -289,7 +361,9 @@ function App() {
 
   if (result) {
     const verdict = result.verdict;
-
+    const hasAgreement = result.final_terms?.length > 0;
+    console.log("FINAL TERMS:", result.final_terms);
+    console.log("HAS AGREEMENT:", hasAgreement);
     return (
       <div className="min-h-screen bg-[#08090c] px-6 py-12 text-white">
         <div className="mx-auto max-w-4xl">
@@ -297,75 +371,111 @@ function App() {
           {/* HEADER */}
 
           <div className="mb-14 flex items-center justify-between">
+
             <div className="text-xl font-semibold tracking-tight">
               mediator
               <span className="text-violet-400">.</span>
             </div>
 
-            <div className="rounded-full border border-emerald-400/20 bg-emerald-400/5 px-4 py-2 text-sm text-emerald-300">
-              Agreement reached
+            <div
+              className={
+                hasAgreement
+                  ? "rounded-full border border-emerald-400/20 bg-emerald-400/5 px-4 py-2 text-sm text-emerald-300"
+                  : "rounded-full border border-red-400/20 bg-red-400/5 px-4 py-2 text-sm text-red-300"
+              }
+            >
+              {hasAgreement
+                ? "Agreement reached"
+                : "No agreement reached"}
             </div>
+
           </div>
 
           {/* HERO */}
 
           <div className="mb-12">
-            <p className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-violet-400">
-              Negotiation complete
-            </p>
 
-            <h1 className="text-5xl font-semibold tracking-tight md:text-7xl">
-              You found
-              <br />
-              <span className="text-white/40">
-                the middle.
-              </span>
-            </h1>
+            {hasAgreement ? (
+              <>
+                <p className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-violet-400">
+                  Negotiation complete
+                </p>
 
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-white/45">
-              Your agents negotiated privately and reached
-              an agreement without exposing either person's
-              original position.
-            </p>
+                <h1 className="text-5xl font-semibold tracking-tight md:text-7xl">
+                  You found
+                  <br />
+                  <span className="text-white/40">
+                    the middle.
+                  </span>
+                </h1>
+
+                <p className="mt-6 max-w-2xl text-lg leading-8 text-white/45">
+                  Your agents negotiated privately and reached
+                  an agreement without exposing either person's
+                  original position.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-red-400">
+                  Negotiation complete
+                </p>
+
+                <h1 className="text-5xl font-semibold tracking-tight md:text-7xl">
+                  No workable
+                  <br />
+                  <span className="text-white/40">
+                    agreement.
+                  </span>
+                </h1>
+
+                <p className="mt-6 max-w-2xl text-lg leading-8 text-white/45">
+                  Your agents could not find terms that satisfy
+                  both parties' non-negotiable requirements.
+                </p>
+              </>
+            )}
+
           </div>
+         {/* FINAL AGREEMENT */}
 
-          {/* FINAL AGREEMENT */}
+          {result.final_terms?.length > 0 && (
+            <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 md:p-8">
 
-          <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 md:p-8">
+              <div className="mb-7">
+                <p className="text-xs uppercase tracking-[0.2em] text-white/30">
+                  Final agreement
+                </p>
 
-            <div className="mb-7">
-              <p className="text-xs uppercase tracking-[0.2em] text-white/30">
-                Final agreement
-              </p>
+                <h2 className="mt-2 text-2xl font-semibold">
+                  What you both agreed to
+                </h2>
+              </div>
 
-              <h2 className="mt-2 text-2xl font-semibold">
-                What you both agreed to
-              </h2>
-            </div>
+              <div className="grid gap-4 md:grid-cols-2">
 
-            <div className="grid gap-4 md:grid-cols-2">
+                {result.final_terms.map((term) => (
+                  <div
+                    key={term.key}
+                    className="rounded-2xl border border-white/10 bg-black/20 p-5"
+                  >
+                    <p className="text-xs uppercase tracking-wider text-white/30">
+                      {term.description}
+                    </p>
 
-              {result.final_terms?.map((term) => (
-                <div
-                  key={term.key}
-                  className="rounded-2xl border border-white/10 bg-black/20 p-5"
-                >
-                  <p className="text-xs uppercase tracking-wider text-white/30">
-                    {term.description}
-                  </p>
+                    <p className="mt-3 text-lg font-medium">
+                      {formatValue(term.value)}
+                    </p>
+                  </div>
+                ))}
 
-                  <p className="mt-3 text-lg font-medium">
-                    {formatValue(term.value)}
-                  </p>
-                </div>
-              ))}
+              </div>
 
-            </div>
-          </section>
-
+            </section>
+          )}
           {/* FAIRNESS */}
 
-          {verdict && (
+          {result.verdict && (
             <section className="mt-6 rounded-3xl border border-white/10 bg-white/[0.03] p-6 md:p-8">
 
               <div className="flex flex-col gap-8 md:flex-row md:items-center">
@@ -376,9 +486,9 @@ function App() {
                   </p>
 
                   <h2 className="mt-2 text-2xl font-semibold">
-                    {verdict.is_balanced
+                    {result.verdict.is_balanced
                       ? "Balanced agreement"
-                      : "Compromise reached"}
+                      : "Compromise Check"}
                   </h2>
 
                   <p className="mt-3 text-sm leading-6 text-white/45">
@@ -390,7 +500,7 @@ function App() {
                 <div className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full border border-violet-400/20 bg-violet-400/5">
                   <div className="text-center">
                     <div className="text-4xl font-bold">
-                      {verdict.balance_score}
+                      {result.verdict.balance_score}
                     </div>
 
                     <div className="text-xs text-white/30">
@@ -405,7 +515,7 @@ function App() {
 
           {/* WHAT EACH SIDE GAVE UP */}
 
-          {verdict && (
+          {result.verdict && (
             <div className="mt-6 grid gap-6 md:grid-cols-2">
 
               <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
@@ -419,7 +529,7 @@ function App() {
                 </h3>
 
                 <p className="mt-4 text-sm leading-7 text-white/50">
-                  {verdict.explanation_for_a}
+                  {result.verdict.explanation_for_a}
                 </p>
 
               </section>
@@ -435,7 +545,7 @@ function App() {
                 </h3>
 
                 <p className="mt-4 text-sm leading-7 text-white/50">
-                  {verdict.explanation_for_b}
+                  {result.verdict.explanation_for_b}
                 </p>
 
               </section>
@@ -658,11 +768,13 @@ function App() {
 
           </div>
 
-          {/* STATUS */}
+         {/* STATUS */}
 
           <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.03] p-6">
 
-            {!negotiating && !done && (
+            {roomStatus !== "negotiating" &&
+              roomStatus !== "done" &&
+              roomStatus !== "error" && (
               <>
                 <div className="flex items-center gap-3">
                   <span className="h-3 w-3 animate-pulse rounded-full bg-violet-400" />
@@ -679,7 +791,7 @@ function App() {
               </>
             )}
 
-            {negotiating && (
+            {roomStatus === "negotiating" && (
               <>
                 <div className="flex items-center gap-3">
                   <span className="h-3 w-3 animate-pulse rounded-full bg-emerald-400" />
@@ -695,7 +807,7 @@ function App() {
               </>
             )}
 
-            {done && (
+            {roomStatus === "done" && (
               <>
                 <div className="flex items-center gap-3">
                   <span className="h-3 w-3 rounded-full bg-emerald-400" />

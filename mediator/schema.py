@@ -55,7 +55,7 @@ class Constraint(BaseModel):
     # "private room"
     # 5
     # 25000
-    value: Optional[Union[dict, str, int, float]] = None
+    value: Optional[Union[dict, list, str, int, float]] = None
 
 
 class ConstraintProfile(BaseModel):
@@ -98,7 +98,7 @@ class ProposalTerm(BaseModel):
     # "private room"
     # 5
     # 25000
-    value: Optional[Union[dict, str, int, float]] = None
+    value: Optional[Union[dict, list, str, int, float]] = None
 
 
 class ProposalAction(str, Enum):

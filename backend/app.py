@@ -112,6 +112,13 @@ def get_status(room_code: str):
     room = store.get(room_code)
     if room is None:
         raise HTTPException(404, "Room not found")
+    print(
+        "STATUS DEBUG:",
+        room.room_code,
+        room.status,
+        "A=", room.profile_a is not None,
+        "B=", room.profile_b is not None,
+    )
     return RoomStatusResponse(
         room_code=room.room_code,
         status=room.status,

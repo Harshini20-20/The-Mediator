@@ -13,9 +13,13 @@ from __future__ import annotations
 
 import json
 
-from mediator.agents import PROVIDER, MODEL, _to_openai_tool
+from mediator.agents import (
+    PROVIDER,
+    MODEL,
+    _to_openai_tool,
+    groq_chat_completion,
+)
 from mediator.schema import ConstraintProfile
-
 INTAKE_SYSTEM_PROMPT = """You extract a structured negotiation brief from a person's own
 description of what they want out of a negotiation (splitting costs, planning a trip,
 agreeing on a rate, dividing chores, etc).
@@ -167,29 +171,46 @@ def _extract_anthropic(party_name: str, free_text: str) -> ConstraintProfile:
 
 
 def _extract_groq(party_name: str, free_text: str) -> ConstraintProfile:
-    from openai import OpenAI
-    import os
-    client = OpenAI(api_key=os.environ["GROQ_API_KEY"], base_url="https://api.groq.com/openai/v1")
-    resp = client.chat.completions.create(
+    resp = groq_chat_completion(
         model=MODEL,
         messages=[
-            {"role": "system", "content": INTAKE_SYSTEM_PROMPT},
-            {"role": "user", "content": f"Party name: {party_name}\n\nWhat they said:\n{free_text}"},
+            {
+                "role": "system",
+                "content": INTAKE_SYSTEM_PROMPT,
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Party name: {party_name}\n\n"
+                    f"What they said:\n{free_text}"
+                ),
+            },
         ],
-        tools=[_to_openai_tool(INTAKE_TOOL)],
-        tool_choice={"type": "function", "function": {"name": "extract_profile"}},
+        tools=[
+            _to_openai_tool(INTAKE_TOOL)
+        ],
+        tool_choice={
+            "type": "function",
+            "function": {
+                "name": "extract_profile",
+            },
+        },
     )
+
     tool_call = resp.choices[0].message.tool_calls[0]
-    data = json.loads(tool_call.function.arguments)
-    return ConstraintProfile(party_name=party_name, **data)
 
+    data = json.loads(
+        tool_call.function.arguments
+    )
 
+    return ConstraintProfile(
+        party_name=party_name,
+        **data,
+    )
 _PROVIDER_FNS = {
     "anthropic": _extract_anthropic,
     "groq": _extract_groq,
 }
-
-
 def _extract_mock(party_name: str, free_text: str) -> ConstraintProfile:
     """
     Deterministic stand-in for offline testing — does NOT do real extraction,
