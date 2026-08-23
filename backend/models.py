@@ -64,10 +64,22 @@ class RoomStatusResponse(BaseModel):
     error_message: Optional[str] = None
 
 
+class PersonalizedVerdict(BaseModel):
+    """
+    A per-party view of the fairness verdict — shows what THIS party
+    gave up and the one thing they didn't know about the other side,
+    but never the other party's own explanation of their trade-offs.
+    """
+    is_balanced: bool
+    balance_score: int
+    your_summary: str          # explanation_for_a or explanation_for_b, depending on caller
+    what_you_didnt_know: str   # what_a_didnt_know or what_b_didnt_know, depending on caller
+
+
 class RoomResultResponse(BaseModel):
     room_code: str
     status: RoomStatus
     stopped_reason: Optional[str] = None
     final_terms: list = []
     all_proposals: list[Proposal] = []
-    verdict: Optional[FairnessVerdict] = None
+    verdict: Optional[PersonalizedVerdict] = None   # was Optional[FairnessVerdict]

@@ -24,7 +24,7 @@ from __future__ import annotations
 import os
 import threading
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from mediator.agents import make_agent
@@ -38,6 +38,7 @@ from .models import (
     JoinRoomRequest, JoinRoomResponse,
     SubmitConstraintsRequest, ExtractConstraintsRequest,
     RoomStatusResponse, RoomResultResponse, RoomStatus,
+    PersonalizedVerdict,
 )
 from .store import store
 
@@ -132,21 +133,45 @@ def get_status(room_code: str):
 
 
 @app.get("/api/rooms/{room_code}/result", response_model=RoomResultResponse)
-def get_result(room_code: str):
+def get_result(room_code: str, role: str = Query(..., pattern="^(a|b)$")):
     room = store.get(room_code)
     if room is None:
         raise HTTPException(404, "Room not found")
     if room.status != RoomStatus.DONE:
         raise HTTPException(409, f"Negotiation not finished yet (status={room.status.value})")
+
+    personalized = None
+    if room.verdict:
+        v = room.verdict
+        if role == "a":
+            personalized = PersonalizedVerdict(
+                is_balanced=v.is_balanced,
+                balance_score=v.balance_score,
+                your_summary=v.explanation_for_a,
+                what_you_didnt_know=(
+                    "The other party's private requirements "
+                    "remained hidden during negotiation."
+                ),
+            )
+        else:
+            personalized = PersonalizedVerdict(
+                is_balanced=v.is_balanced,
+                balance_score=v.balance_score,
+                your_summary=v.explanation_for_b,
+                what_you_didnt_know=(
+                    "The other party's private requirements "
+                    "remained hidden during negotiation."
+                ),
+            )
+
     return RoomResultResponse(
         room_code=room.room_code,
         status=room.status,
         stopped_reason=room.stopped_reason,
         final_terms=room.final_terms,
         all_proposals=room.proposals,
-        verdict=room.verdict,
+        verdict=personalized,
     )
-
 
 def _run_negotiation_job(room_code: str) -> None:
     """

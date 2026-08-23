@@ -214,7 +214,7 @@ function App() {
   async function fetchResult() {
     try {
       const response = await fetch(
-        `${API}/api/rooms/${roomCode}/result`
+        `${API}/api/rooms/${roomCode}/result?role=${role}`
       );
 
       if (!response.ok) {
@@ -279,7 +279,7 @@ function App() {
           clearInterval(interval);
 
           const resultResponse = await fetch(
-            `${API}/api/rooms/${roomCode}/result`
+            `${API}/api/rooms/${roomCode}/result?role=${role}`
           );
 
           if (!resultResponse.ok) {
@@ -522,46 +522,33 @@ function App() {
             </section>
           )}
 
-          {/* WHAT EACH SIDE GAVE UP */}
+      {/* YOUR PERSONALIZED OUTCOME */}
 
-          {result.verdict && (
-            <div className="mt-6 grid gap-6 md:grid-cols-2">
+      {result.verdict && (
+        <section className="mt-6 rounded-3xl border border-white/10 bg-white/[0.03] p-6 md:p-8">
 
-              <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
+          <p className="text-xs uppercase tracking-[0.2em] text-violet-400">
+            Your outcome
+          </p>
 
-                <p className="text-xs uppercase tracking-[0.2em] text-violet-400">
-                  Party A
-                </p>
+          <h3 className="mt-2 text-xl font-semibold">
+            What you gave up
+          </h3>
 
-                <h3 className="mt-2 text-xl font-semibold">
-                  What they gave up
-                </h3>
+          <p className="mt-4 text-sm leading-7 text-white/50">
+            {result.verdict.your_summary}
+          </p>
 
-                <p className="mt-4 text-sm leading-7 text-white/50">
-                  {result.verdict.explanation_for_a}
-                </p>
+          <h3 className="mt-8 text-xl font-semibold">
+            What you didn't know
+          </h3>
 
-              </section>
+          <p className="mt-4 text-sm leading-7 text-white/50">
+            {result.verdict.what_you_didnt_know}
+          </p>
 
-              <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-
-                <p className="text-xs uppercase tracking-[0.2em] text-violet-400">
-                  Party B
-                </p>
-
-                <h3 className="mt-2 text-xl font-semibold">
-                  What they gave up
-                </h3>
-
-                <p className="mt-4 text-sm leading-7 text-white/50">
-                  {result.verdict.explanation_for_b}
-                </p>
-
-              </section>
-
-            </div>
-          )}
-
+        </section>
+      )}
           {/* NEGOTIATION ROUNDS */}
 
           {result.all_proposals?.length > 0 && (

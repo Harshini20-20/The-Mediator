@@ -151,8 +151,6 @@ class NegotiationTranscript(BaseModel):
 
     def last_proposal(self) -> Optional[Proposal]:
         return self.proposals[-1] if self.proposals else None
-
-
 class FairnessVerdict(BaseModel):
     """Output of the independent fairness-check layer."""
 
