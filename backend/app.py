@@ -148,20 +148,14 @@ def get_result(room_code: str, role: str = Query(..., pattern="^(a|b)$")):
                 is_balanced=v.is_balanced,
                 balance_score=v.balance_score,
                 your_summary=v.explanation_for_a,
-                what_you_didnt_know=(
-                    "The other party's private requirements "
-                    "remained hidden during negotiation."
-                ),
+               
             )
         else:
             personalized = PersonalizedVerdict(
                 is_balanced=v.is_balanced,
                 balance_score=v.balance_score,
                 your_summary=v.explanation_for_b,
-                what_you_didnt_know=(
-                    "The other party's private requirements "
-                    "remained hidden during negotiation."
-                ),
+                
             )
 
     return RoomResultResponse(

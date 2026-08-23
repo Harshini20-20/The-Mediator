@@ -539,14 +539,6 @@ function App() {
             {result.verdict.your_summary}
           </p>
 
-          <h3 className="mt-8 text-xl font-semibold">
-            What you didn't know
-          </h3>
-
-          <p className="mt-4 text-sm leading-7 text-white/50">
-            {result.verdict.what_you_didnt_know}
-          </p>
-
         </section>
       )}
           {/* NEGOTIATION ROUNDS */}
