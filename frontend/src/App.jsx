@@ -239,104 +239,113 @@ function App() {
       return false;
     }
   }
+  // -----------------------------
+  // ROOM STATUS POLLING
+  // -----------------------------
 
- // -----------------------------
-// ROOM STATUS POLLING
-// -----------------------------
+  useEffect(() => {
+    if (!roomCode || !profile) return;
 
-useEffect(() => {
-  if (!roomCode || !profile) return;
+    let cancelled = false;
+    let interval;
 
-  let cancelled = false;
-
-  async function checkStatus() {
-    try {
-      const response = await fetch(
-        `${API}/api/rooms/${roomCode}/status`
-      );
-
-      if (!response.ok) {
-        console.error(
-          "Status request failed:",
-          response.status
-        );
-        return;
-      }
-
-      const data = await response.json();
-
-      if (cancelled) return;
-
-      console.log("ROOM STATUS:", data.status);
-      console.log("ROOM ERROR:", data.error_message);
-      setRoomStatus(data.status);
-
-      // Negotiation has finished.
-      // Immediately load the final agreement.
-      if (data.status === "done") {
-        console.log("NEGOTIATION DONE — LOADING RESULT");
-
-        const resultResponse = await fetch(
-          `${API}/api/rooms/${roomCode}/result`
+    async function checkStatus() {
+      try {
+        const response = await fetch(
+          `${API}/api/rooms/${roomCode}/status`
         );
 
-        if (!resultResponse.ok) {
-          const message = await resultResponse.text();
-
+        if (!response.ok) {
           console.error(
-            "FINAL RESULT FAILED:",
-            resultResponse.status,
-            message
+            "Status request failed:",
+            response.status
+          );
+          return;
+        }
+
+        const data = await response.json();
+
+        if (cancelled) return;
+
+        console.log("ROOM STATUS:", data.status);
+        console.log("ROOM ERROR:", data.error_message);
+
+        setRoomStatus(data.status);
+
+        // Negotiation has finished.
+        if (data.status === "done") {
+          console.log("NEGOTIATION DONE — STOPPING POLLING");
+
+          clearInterval(interval);
+
+          const resultResponse = await fetch(
+            `${API}/api/rooms/${roomCode}/result`
+          );
+
+          if (!resultResponse.ok) {
+            const message = await resultResponse.text();
+
+            console.error(
+              "FINAL RESULT FAILED:",
+              resultResponse.status,
+              message
+            );
+
+            return;
+          }
+
+          const finalData = await resultResponse.json();
+
+          console.log(
+            "FINAL RESULT:",
+            finalData
+          );
+
+          if (!cancelled) {
+            setResult(finalData);
+            setRoomStatus("done");
+          }
+
+          return;
+        }
+
+        // Negotiation failed.
+        if (data.status === "error") {
+          console.log("NEGOTIATION ERROR — STOPPING POLLING");
+
+          clearInterval(interval);
+
+          setError(
+            data.error_message ||
+            "The negotiation could not be completed."
           );
 
           return;
         }
 
-        const finalData = await resultResponse.json();
-
-        console.log(
-          "FINAL RESULT:",
-          finalData
-        );
-
-        if (!cancelled) {
-          setResult(finalData);
-          setRoomStatus("done");
-        }
-
-        return;
-      }
-
-      if (data.status === "error") {
-        setError(
-          data.error_message ||
-          "The negotiation could not be completed."
+      } catch (err) {
+        console.error(
+          "Status polling error:",
+          err
         );
       }
-
-    } catch (err) {
-      console.error(
-        "Status polling error:",
-        err
-      );
     }
-  }
 
-  // Check immediately.
-  checkStatus();
+    // Check immediately.
+    checkStatus();
 
-  // Continue checking every 2 seconds.
-  const interval = setInterval(
-    checkStatus,
-    2000
-  );
+    // Continue checking every 2 seconds.
+    interval = setInterval(
+      checkStatus,
+      2000
+    );
 
-  return () => {
-    cancelled = true;
-    clearInterval(interval);
-  };
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
 
-}, [roomCode, profile]);
+  }, [roomCode, profile]);
   // -----------------------------
   // RESET
   // -----------------------------

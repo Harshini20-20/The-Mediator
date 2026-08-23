@@ -10,7 +10,7 @@ never violates either party's HARD constraints.
 """
 
 from __future__ import annotations
-
+from datetime import datetime
 from typing import Callable, Optional
 import re
 from .agents import BaseAgent
@@ -99,7 +99,23 @@ def _number(value):
                 return number
 
     return None
+from datetime import datetime
 
+def _date(value):
+    """Extract a date from an ISO string or a dict wrapping one."""
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value.strip()).date()
+        except ValueError:
+            return None
+    if isinstance(value, dict):
+        for key in ("date", "value", "by", "deadline"):
+            candidate = value.get(key)
+            if candidate is not None:
+                d = _date(candidate)
+                if d is not None:
+                    return d
+    return None
 
 def _term_value(term: ProposalTerm):
     """Return the concrete value carried by a proposal term."""
@@ -389,6 +405,22 @@ def _satisfies_hard_constraint(
             )
 
         return False
+    if isinstance(constraint_value, dict):
+        for deadline_key in ("must_return_by", "by", "deadline", "no_later_than", "before"):
+            if deadline_key in constraint_value:
+                deadline = _date(constraint_value[deadline_key])
+                proposed_date = _date(proposed_value)
+                if deadline is not None and proposed_date is not None:
+                    return proposed_date <= deadline
+                return False   # can't verify -> don't silently pass
+
+        for start_key in ("must_start_by", "no_earlier_than", "after"):
+            if start_key in constraint_value:
+                earliest = _date(constraint_value[start_key])
+                proposed_date = _date(proposed_value)
+                if earliest is not None and proposed_date is not None:
+                    return proposed_date >= earliest
+                return False
     # --------------------------------------------------------
     # Structured equality
     # --------------------------------------------------------

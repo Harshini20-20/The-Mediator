@@ -86,8 +86,8 @@ def get_groq_api_keys() -> list[str]:
     if GROQ_API_KEY:
         keys.append(GROQ_API_KEY)
 
-    if GROQ_API_KEY_BACKUP:
-        keys.append(GROQ_API_KEY_BACKUP)
+    if GROQ_BACKUP_KEY:
+        keys.append(GROQ_BACKUP_KEY)
 
     return keys
 
