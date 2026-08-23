@@ -102,7 +102,7 @@ If no valid solution exists, the system clearly returns a **No Agreement** resul
 
 # How It Works
 
-```text
+'''text
              PARTY A                         PARTY B
                 |                               |
         Private requirements             Private requirements
@@ -135,3 +135,119 @@ If no valid solution exists, the system clearly returns a **No Agreement** resul
                     |
                     v
             Agreement / No Agreement
+            
+'''
+# Try It Now
+The fastest way to see The Mediator work is Mock Mode — the full negotiation flow,
+running end to end, with no API key and no external calls.
+
+```bash
+git clone https://github.com/Harshini20-20/The-Mediator.git
+cd The-Mediator
+
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+
+$env:MEDIATOR_MOCK="1"
+python -m uvicorn backend.app:app --reload --port 8000
+```
+
+In a second terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open the URL Vite prints. Create a room. Run a negotiation.
+
+Nothing here calls an external API. This is the whole product, working, in under a
+minute.
+
+---
+
+# Running It Live
+
+Mock Mode proves the architecture. Live Mode proves the AI.
+
+Live negotiations run on [Groq](https://console.groq.com), which offers a free tier
+with no card required.
+
+1. Get a key at console.groq.com.
+2. Create a `.env` file in the project root:
+
+```env
+MEDIATOR_PROVIDER=groq
+GROQ_API_KEY=your_key_here
+```
+
+3. Start the backend without `MEDIATOR_MOCK` set:
+
+```bash
+python -m uvicorn backend.app:app --reload --port 8000
+```
+
+4. Start the frontend the same way as above.
+
+No key belongs in this repository. `.env` is git-ignored. Anyone running this project
+brings their own key.
+
+---
+
+# Tech Stack
+
+**Backend** — Python, FastAPI, Pydantic.
+
+**Frontend** — React, Vite, Tailwind CSS.
+
+**Negotiation engine** — a custom round-based state machine. Hard constraints are
+enforced by deterministic code, never left to a model's judgment.
+
+**Rooms** — short alphanumeric codes. No accounts, no signup.
+
+**State** — in-memory for this build. Swappable for Redis or Postgres for anything
+beyond a demo.
+
+---
+
+# Project Structure
+
+```text
+The-Mediator/
+├── mediator/          core negotiation engine
+│   ├── schema.py        the data model
+│   ├── agents.py         negotiating agents — Groq, Anthropic, or mock
+│   ├── negotiation.py     the round loop and hard-constraint validator
+│   └── fairness.py        the independent fairness layer
+├── backend/           FastAPI, room-code pairing
+├── frontend/          the React app
+├── scenarios/         example negotiations for CLI testing
+├── main.py            CLI runner
+└── .env.example
+```
+
+---
+
+# API
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/api/rooms` | Create a room |
+| POST | `/api/rooms/{code}/join` | Join a room |
+| POST | `/api/rooms/{code}/extract` | Turn free text into structured constraints |
+| POST | `/api/rooms/{code}/constraints` | Submit a party's profile |
+| GET | `/api/rooms/{code}/status` | Poll live negotiation status |
+| GET | `/api/rooms/{code}/result` | Final terms and fairness verdict |
+
+Submitting constraints for both parties starts the negotiation automatically. Nothing
+else needs to be triggered by hand.
+
+---
+
+# Hackathon Context
+
+Built for Prasunethon 2.0 — Artificial Intelligence & Machine Learning track.
+
+
